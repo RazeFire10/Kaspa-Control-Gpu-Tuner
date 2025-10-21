@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# PyInstaller
+build/
+*.spec
+*.log
+
+# Output
+dist/
+*.exe
+
+# System
+.DS_Store
+Thumbs.db

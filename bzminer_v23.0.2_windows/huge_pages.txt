@@ -1,0 +1,5 @@
+Enable huge pages on windows:
+1. From the Start menu, open Local Security Policy (under Administrative Tools).
+2. Under Local Policies\User Rights Assignment, double click the Lock Pages in Memory setting.
+3. Click Add User or Group and type your Windows user name.
+4. Either log off and then log back in or restart your computer - unfortunately it won't work without this step.

@@ -1,0 +1,14 @@
+{
+  "algo": "kaspa",
+  "wallet_worker": "kaspa:your_wallet.worker",
+  "pool": "stratum+tcp://us2.kaspa.herominers.com:1209",
+  "web_port": 4014,
+  "miner_dir": "C:\\FILELOCATION\\KaspaControlApp\\bzminer_v23.0.2_windows",
+  "miner_exe": "bzminer.exe",
+  "miner_oc_args": [],
+  "tuning_mode": "none",
+  "odnt_path": "C:\\FILELOCATION\\KaspaControlApp\\OverdriveNTool.exe",
+  "odnt_profile_kaspa": "Kaspa",
+  "odnt_profile_default": "Default",
+  "gpu_index": 0
+}
