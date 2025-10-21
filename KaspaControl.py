@@ -1,7 +1,9 @@
-import os, re, sys, json, time, psutil, queue, ctypes, threading, subprocess, tkinter as tk
+# KaspaControl v2.1.0 — alerts + logs viewer + NVIDIA preflight
+import os, re, sys, json, time, psutil, ctypes, threading, subprocess, tkinter as tk
 from tkinter import messagebox, filedialog
 from PIL import Image, ImageDraw
 import pystray, webbrowser
+import winsound, datetime
 
 # ===================== PORTABLE BASE DIR =====================
 if getattr(sys, 'frozen', False):
@@ -10,7 +12,7 @@ else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-ICON_PATH   = os.path.join(BASE_DIR, "kaspa.ico")  # <-- tray + window icon
+ICON_PATH   = os.path.join(BASE_DIR, "kaspa.ico")  # tray + window icon
 
 DEFAULT_CONFIG = {
     "algo": "kaspa",
@@ -24,7 +26,10 @@ DEFAULT_CONFIG = {
     "odnt_path": os.path.join(BASE_DIR, "OverdriveNTool.exe"),
     "odnt_profile_kaspa": "Kaspa",
     "odnt_profile_default": "Default",
-    "gpu_index": 0
+    "gpu_index": 0,
+    # v2.1.0 additions:
+    "alert_block_sound": True,
+    "alert_block_popup": True
 }
 
 def save_config(cfg):
@@ -74,8 +79,8 @@ shutdown_evt = threading.Event()
 current = {"mh": 0.0, "a": 0, "r": 0, "i": 0, "pw": 0.0, "tc": 0.0}
 
 # UI globals
-_root = None          # persistent hidden root
-_win = None           # Toplevel window
+_root = None
+_win = None
 _text_var = None
 _stats_label = None
 
@@ -113,7 +118,51 @@ def _relaunch_elevated_and_exit():
     ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
     os._exit(0)
 
-# ===================== PARSER =====================
+def _ensure_log_file():
+    try:
+        os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+    except Exception:
+        pass
+    if not os.path.isfile(LOG_PATH):
+        try:
+            with open(LOG_PATH, "w", encoding="utf-8") as _:
+                _.write("")
+        except Exception:
+            pass
+
+def _detect_gpus():
+    """Returns (has_amd, has_nvidia, names list) using wmic (no extra deps)."""
+    try:
+        out = subprocess.run(
+            ["wmic", "path", "win32_VideoController", "get", "Name"],
+            capture_output=True, text=True, timeout=5
+        )
+        names = [n.strip() for n in out.stdout.splitlines() if n.strip() and "Name" not in n]
+        low = " ".join(n.lower() for n in names)
+        return ("amd" in low or "radeon" in low, "nvidia" in low or "geforce" in low, names)
+    except Exception:
+        return (False, False, [])
+
+# ===================== NOTIFICATIONS =====================
+def _notify_block_found(extra_msg: str = ""):
+    # Sound (3 short beeps)
+    if cfg.get("alert_block_sound", True):
+        try:
+            for f in (880, 1175, 1568):  # A5, D6, G6
+                winsound.Beep(f, 120)
+        except Exception:
+            try: winsound.MessageBeep(-1)
+            except Exception: pass
+    # Popup on the Tk thread
+    if cfg.get("alert_block_popup", True):
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        msg = f"🎉 Block found at {ts}!\n\n{extra_msg}".strip()
+        try:
+            _root.after(0, lambda: messagebox.showinfo("KaspaControl — Block Found", msg))
+        except Exception:
+            pass
+
+# ===================== PARSER/READER =====================
 def parse_line(line: str):
     line = _normalize_line(line)
 
@@ -155,7 +204,7 @@ def parse_line(line: str):
         except: pass
 
 def reader_loop():
-    os.makedirs(WORK_DIR, exist_ok=True)
+    _ensure_log_file()
     with open(LOG_PATH, "a", encoding="utf-8", errors="ignore") as lf:
         while not shutdown_evt.is_set():
             if miner_proc and miner_proc.poll() is None:
@@ -166,7 +215,15 @@ def reader_loop():
                     line = raw.decode("utf-8", errors="ignore").rstrip("\r\n")
                 except AttributeError:
                     line = str(raw).rstrip("\r\n")
+
+                # write to log
                 lf.write(line + "\n"); lf.flush()
+
+                # detect block win (solo)
+                low = line.lower()
+                if ("block found" in low) or ("worker found a block" in low) or ("accepted solo block" in low):
+                    _notify_block_found(line)
+
                 parse_line(line)
             else:
                 time.sleep(0.2)
@@ -234,6 +291,29 @@ def start_miner():
         messagebox.showinfo("Kaspa Control", "Miner already running!")
         return
 
+    # Pre-flight: basic GPU sanity + warn on NVIDIA CUDA missing last run
+    has_amd, has_nv, gpu_names = _detect_gpus()
+    if not (has_amd or has_nv):
+        if not messagebox.askyesno("Kaspa Control",
+            "No AMD/NVIDIA GPUs detected by Windows.\n\n"
+            "Continue anyway? (Driver issue or headless system)"):
+            return
+    try:
+        if os.path.isfile(LOG_PATH):
+            with open(LOG_PATH, "rb") as _lf:
+                _lf.seek(0, os.SEEK_END)
+                size = _lf.tell()
+                _lf.seek(max(size - 64*1024, 0))
+                tail = _lf.read().decode("utf-8", "ignore").lower()
+            if has_nv and ("cuda not found" in tail):
+                messagebox.showwarning(
+                    "Kaspa Control — NVIDIA driver",
+                    "NVIDIA GPU(s) detected but BzMiner reported 'CUDA not found' last run.\n"
+                    "Install/repair NVIDIA drivers and reboot."
+                )
+    except Exception:
+        pass
+
     apply_tune("kaspa")
     time.sleep(1.0)
 
@@ -274,6 +354,22 @@ def open_web_gui():
     port = int(cfg.get("web_port", 4014))
     webbrowser.open(f"http://127.0.0.1:{port}", new=2)
 
+# ===================== LOG VIEWER =====================
+def open_logs_cmd():
+    # Ensure the log file exists so tail doesn't error
+    _ensure_log_file()
+
+    # Open a NEW console window that tails the log in real time
+    # Uses PowerShell's Get-Content -Wait for a proper tail
+    subprocess.Popen(
+        [
+            "cmd", "/c", "start", "", "powershell",
+            "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-Command", f'Get-Content -Path "{LOG_PATH}" -Wait -Tail 200'
+        ],
+        cwd=WORK_DIR
+    )
+
 # ===================== SETTINGS UI =====================
 def open_settings():
     s = tk.Toplevel(_root)
@@ -283,37 +379,99 @@ def open_settings():
             s.iconbitmap(ICON_PATH)
     except Exception:
         pass
-    s.geometry("620x560")
-    s.resizable(False, False)
+    s.geometry("760x720")
+    s.resizable(True, True)              # allow resizing
+    s.grid_columnconfigure(1, weight=1)  # make input column stretch
 
     entries = {}
-    def add_row(row, label, key, width=64):
+    def add_row(row, label, key):
         tk.Label(s, text=label, anchor="w").grid(row=row, column=0, sticky="w", padx=8, pady=4)
         var = tk.StringVar(value=str(cfg.get(key, "")))
-        e = tk.Entry(s, textvariable=var, width=width)
-        e.grid(row=row, column=1, sticky="w", padx=8, pady=4)
+        e = tk.Entry(s, textvariable=var)
+        e.grid(row=row, column=1, sticky="ew", padx=8, pady=4)  # stretch horizontally
         entries[key] = var
 
     add_row(0,  "Algorithm",     "algo")
     add_row(1,  "Wallet.Worker", "wallet_worker")
     add_row(2,  "Pool URL",      "pool")
-    add_row(3,  "Web GUI Port",  "web_port")
-    add_row(4,  "Miner Folder",  "miner_dir", width=56)
+
+    tk.Label(s, text="Web GUI Port").grid(row=3, column=0, sticky="w", padx=8, pady=4)
+    wp_var = tk.StringVar(value=str(cfg.get("web_port", 4014)))
+    tk.Entry(s, textvariable=wp_var).grid(row=3, column=1, sticky="ew", padx=8, pady=4)
+
+    add_row(4,  "Miner Folder",  "miner_dir")
     add_row(5,  "Miner EXE",     "miner_exe")
 
     tk.Label(s, text="Miner OC Args (JSON array, optional)").grid(row=6, column=0, sticky="w", padx=8, pady=4)
     mo_var = tk.StringVar(value=json.dumps(cfg.get("miner_oc_args", [])))
-    tk.Entry(s, textvariable=mo_var, width=56).grid(row=6, column=1, sticky="w", padx=8, pady=4)
+    tk.Entry(s, textvariable=mo_var).grid(row=6, column=1, sticky="ew", padx=8, pady=4)
 
     tk.Label(s, text="Tuning Mode (none/odnt)").grid(row=8, column=0, sticky="w", padx=8, pady=6)
     tm_var = tk.StringVar(value=str(cfg.get("tuning_mode","none")))
     tk.Entry(s, textvariable=tm_var, width=20).grid(row=8, column=1, sticky="w", padx=8, pady=6)
 
-    add_row(9,  "ODNT Path",            "odnt_path", width=56)
+    add_row(9,  "ODNT Path",            "odnt_path")
     add_row(10, "ODNT Kaspa Profile",   "odnt_profile_kaspa")
     add_row(11, "ODNT Default Profile", "odnt_profile_default")
-    add_row(12, "GPU Index",            "gpu_index")
 
+    tk.Label(s, text="GPU Index").grid(row=12, column=0, sticky="w", padx=8, pady=4)
+    gi_var = tk.StringVar(value=str(cfg.get("gpu_index", 0)))
+    tk.Entry(s, textvariable=gi_var, width=10).grid(row=12, column=1, sticky="w", padx=8, pady=4)
+
+    # Alerts
+    tk.Label(s, text="Alerts").grid(row=13, column=0, sticky="w", padx=8, pady=(16,6))
+    alert_sound_var = tk.BooleanVar(value=bool(cfg.get("alert_block_sound", True)))
+    alert_popup_var = tk.BooleanVar(value=bool(cfg.get("alert_block_popup", True)))
+    tk.Checkbutton(s, text="Play sound on block found", variable=alert_sound_var)\
+        .grid(row=14, column=0, columnspan=2, sticky="w", padx=16)
+    tk.Checkbutton(s, text="Show popup on block found", variable=alert_popup_var)\
+        .grid(row=15, column=0, columnspan=2, sticky="w", padx=16)
+
+    def test_alerts():
+        _notify_block_found("This is a test alert (manual).")
+    tk.Button(s, text="🔔 Test Alerts", command=test_alerts).grid(row=14, column=2, padx=6)
+
+    # Save
+    def save_and_apply():
+        try:
+            cfg["algo"] = entries["algo"].get().strip()
+            cfg["wallet_worker"] = entries["wallet_worker"].get().strip()
+            cfg["pool"] = entries["pool"].get().strip()
+            try: cfg["web_port"] = int(wp_var.get().strip())
+            except: cfg["web_port"] = 4014
+
+            cfg["miner_dir"] = entries["miner_dir"].get().strip()
+            cfg["miner_exe"] = entries["miner_exe"].get().strip()
+
+            try:
+                cfg["miner_oc_args"] = json.loads(mo_var.get().strip() or "[]")
+                if not isinstance(cfg["miner_oc_args"], list):
+                    raise ValueError
+            except Exception:
+                messagebox.showerror("Settings", "Miner OC Args must be a JSON array (e.g., [\"--cclk\",\"1350\"]).")
+                return
+
+            cfg["tuning_mode"] = tm_var.get().strip().lower()
+            cfg["odnt_path"] = entries["odnt_path"].get().strip()
+            cfg["odnt_profile_kaspa"] = entries["odnt_profile_kaspa"].get().strip()
+            cfg["odnt_profile_default"] = entries["odnt_profile_default"].get().strip()
+            try: cfg["gpu_index"] = int(gi_var.get().strip())
+            except: cfg["gpu_index"] = 0
+
+            cfg["alert_block_sound"] = bool(alert_sound_var.get())
+            cfg["alert_block_popup"] = bool(alert_popup_var.get())
+
+            save_config(cfg)
+            messagebox.showinfo("Settings", "Saved. Some changes apply next start.")
+            s.destroy()
+        except Exception as e:
+            messagebox.showerror("Settings", f"Failed to save: {e}")
+
+    tk.Button(s, text="Save", bg="#4CAF50", fg="white", command=save_and_apply)\
+        .grid(row=20, column=1, pady=14, sticky="e")
+
+
+    # Browse buttons
     def pick_miner_dir():
         path = filedialog.askdirectory(initialdir=cfg.get("miner_dir", BASE_DIR), title="Select miner folder")
         if path: entries["miner_dir"].set(path)
@@ -325,6 +483,17 @@ def open_settings():
     tk.Button(s, text="Browse Miner Folder", command=pick_miner_dir).grid(row=4, column=2, padx=6)
     tk.Button(s, text="Browse ODNT", command=pick_odnt).grid(row=9, column=2, padx=6)
 
+    # Alerts
+    tk.Label(s, text="Alerts").grid(row=13, column=0, sticky="w", padx=8, pady=(16,6))
+    alert_sound_var = tk.BooleanVar(value=bool(cfg.get("alert_block_sound", True)))
+    alert_popup_var = tk.BooleanVar(value=bool(cfg.get("alert_block_popup", True)))
+    tk.Checkbutton(s, text="Play sound on block found", variable=alert_sound_var).grid(row=14, column=0, columnspan=2, sticky="w", padx=16)
+    tk.Checkbutton(s, text="Show popup on block found", variable=alert_popup_var).grid(row=15, column=0, columnspan=2, sticky="w", padx=16)
+    def test_alerts():
+        _notify_block_found("This is a test alert (manual).")
+    tk.Button(s, text="🔔 Test Alerts", command=test_alerts).grid(row=14, column=2, padx=6)
+
+    # Save
     def save_and_apply():
         try:
             cfg["algo"] = entries["algo"].get().strip()
@@ -351,38 +520,16 @@ def open_settings():
             try: cfg["gpu_index"] = int(entries["gpu_index"].get().strip())
             except: cfg["gpu_index"] = 0
 
+            cfg["alert_block_sound"] = bool(alert_sound_var.get())
+            cfg["alert_block_popup"] = bool(alert_popup_var.get())
+
             save_config(cfg)
-            messagebox.showinfo("Settings", "Saved. Please restart the controller to fully reload settings.")
+            messagebox.showinfo("Settings", "Saved. Some changes apply next start.")
             s.destroy()
         except Exception as e:
             messagebox.showerror("Settings", f"Failed to save: {e}")
 
     tk.Button(s, text="Save", bg="#4CAF50", fg="white", command=save_and_apply).grid(row=20, column=1, pady=14)
-
-def test_odnt_profiles():
-    exe = ODNT_EXE
-    if not os.path.isfile(exe):
-        messagebox.showerror("ODNT Test", f"ODNT not found:\n{exe}")
-        return
-    names = _odnt_ini_profiles(exe)
-    lines = [f"ODNT: {exe}"]
-    ini = os.path.join(os.path.dirname(exe), "OverdriveNTool.ini")
-    lines.append(f"INI:  {ini} ({'found' if os.path.isfile(ini) else 'missing'})")
-    if names:
-        lines.append("Profiles:")
-        lines += [f"  - {n}" for n in names]
-    else:
-        lines.append("Profiles: (none found)")
-
-    cmd = [exe, f'-r{GPU_INDEX}', f'-p{GPU_INDEX}{ODNT_PROFILE_KASPA}']
-    res = subprocess.run(cmd, cwd=os.path.dirname(exe) or None, capture_output=True, text=True)
-    lines.append("")
-    lines.append("Test apply:")
-    lines.append(f"  {' '.join(cmd)}")
-    lines.append(f"  rc={res.returncode}")
-    if res.stdout: lines.append("  stdout:\n" + res.stdout.strip())
-    if res.stderr: lines.append("  stderr:\n" + res.stderr.strip())
-    messagebox.showinfo("ODNT Test", "\n".join(lines[:2000]))
 
 # ===================== GUI (Toplevel) =====================
 def _ensure_root():
@@ -397,7 +544,6 @@ def _ensure_root():
             pass
 
 def _open_gui_on_main_thread():
-    """Create/raise Toplevel."""
     global _win, _text_var, _stats_label
 
     if _win and _win.winfo_exists():
@@ -414,10 +560,9 @@ def _open_gui_on_main_thread():
             _win.iconbitmap(ICON_PATH)
     except Exception:
         pass
-    _win.geometry("340x360")
+    _win.geometry("360x420")
     _win.resizable(False, False)
 
-    # On close: hide instead of destroy so we can reopen cleanly
     def _hide():
         try: _win.withdraw()
         except Exception: pass
@@ -433,6 +578,9 @@ def _open_gui_on_main_thread():
               bg="#666666", fg="white", command=open_settings).pack(pady=2)
     tk.Button(_win, text="🧪 Test ODNT", font=("Segoe UI", 9, "bold"),
               bg="#9C27B0", fg="white", command=test_odnt_profiles).pack(pady=2)
+    tk.Button(_win, text="📄 View Logs…", font=("Segoe UI", 10, "bold"),
+              bg="#444444", fg="white", command=open_logs_cmd).pack(pady=4)
+
 
     _text_var = tk.StringVar(value="Miner stopped.")
     _stats_label = tk.Label(_win, textvariable=_text_var, font=("Consolas", 10),
@@ -461,7 +609,6 @@ def _open_gui_on_main_thread():
     threading.Thread(target=update_stats_loop, daemon=True).start()
 
 def open_gui(icon=None, item=None):
-    """Tray callback -> schedule GUI open on Tk main thread safely."""
     _ensure_root()
     _root.after(0, _open_gui_on_main_thread)
 
@@ -470,7 +617,6 @@ def _load_tray_icon():
     try:
         if os.path.isfile(ICON_PATH):
             im = Image.open(ICON_PATH).convert("RGBA")
-            # Choose largest frame if ICO is multi-size
             if hasattr(im, "n_frames"):
                 best_sz, best_im = 0, im
                 try:
@@ -484,7 +630,6 @@ def _load_tray_icon():
             return im
     except Exception:
         pass
-    # Fallback simple icon
     img = Image.new('RGB', (64, 64), color=(255, 140, 0))
     d = ImageDraw.Draw(img)
     d.ellipse((8, 8, 56, 56), fill=(255, 255, 255))
@@ -501,7 +646,6 @@ def on_quit(icon, item):
         icon.stop()
     except Exception:
         pass
-    # Exit Tk loop
     if _root:
         _root.after(0, _root.quit)
 
@@ -516,16 +660,40 @@ def _start_tray():
     )
     tray_img = _load_tray_icon()
     icon = pystray.Icon("KaspaControl", tray_img, "Kaspa Control", menu)
-    # Run tray in background so Tk mainloop can own the main thread
     icon.run_detached()
 
+# ===================== ODNT TEST DIALOG =====================
+def test_odnt_profiles():
+    exe = ODNT_EXE
+    if not os.path.isfile(exe):
+        messagebox.showerror("ODNT Test", f"ODNT not found:\n{exe}")
+        return
+    names = _odnt_ini_profiles(exe)
+    lines = [f"ODNT: {exe}"]
+    ini = os.path.join(os.path.dirname(exe), "OverdriveNTool.ini")
+    lines.append(f"INI:  {ini} ({'found' if os.path.isfile(ini) else 'missing'})")
+    if names:
+        lines.append("Profiles:")
+        lines += [f"  - {n}" for n in names]
+    else:
+        lines.append("Profiles: (none found)")
+
+    cmd = [exe, f'-r{GPU_INDEX}', f'-p{GPU_INDEX}{ODNT_PROFILE_KASPA}']
+    res = subprocess.run(cmd, cwd=os.path.dirname(exe) or None, capture_output=True, text=True)
+    lines.append("")
+    lines.append("Test apply:")
+    lines.append(f"  {' '.join(cmd)}")
+    lines.append(f"  rc={res.returncode}")
+    if res.stdout: lines.append("  stdout:\n" + res.stdout.strip())
+    if res.stderr: lines.append("  stderr:\n" + res.stderr.strip())
+    messagebox.showinfo("ODNT Test", "\n".join(lines[:2000]))
+
+# ===================== MAIN =====================
 def main():
     run_as_admin_if_needed()
     _ensure_root()
-    # Show the window at launch (optional). Comment out to start minimized to tray.
-    open_gui()
+    open_gui()       # comment out to start minimized to tray
     _start_tray()
-    # Tk main loop stays alive; window can be hidden/reopened via tray
     _root.mainloop()
 
 if __name__ == "__main__":
